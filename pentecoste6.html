@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#3A1A5E">
+<link rel="manifest" href="manifest.json">
+<title>Route di Pentecoste</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--viola:#3A1A5E;--viola-mid:#5B2D8E;--gold:#C9960A;--gold-light:#F0C84A;--verde:#1A7A3C;--arancio:#E8610A;--white:#FEFEFE;--panel-h:192px}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#3A1A5E}
+#map{position:absolute;top:0;left:0;right:0;bottom:var(--panel-h);z-index:1}
+#topbar{position:absolute;top:0;left:0;right:0;z-index:20;background:linear-gradient(rgba(58,26,94,.92),transparent);padding:env(safe-area-inset-top,10px) 14px 28px;display:flex;align-items:flex-start;justify-content:space-between;pointer-events:none}
+#topbar>*{pointer-events:auto}
+#topbar h1{color:#fff;font-size:14px;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+#topbar .sub{color:rgba(255,255,255,.58);font-size:10px;margin-top:1px}
+#top-btns{display:flex;gap:6px}
+.tbtn{background:rgba(255,255,255,.18);backdrop-filter:blur(8px);border:none;border-radius:10px;color:white;padding:7px 11px;font-size:12px;font-weight:600;cursor:pointer;transition:background .2s}
+.tbtn.on{background:var(--verde)}
+#panel{position:absolute;bottom:0;left:0;right:0;z-index:10;height:var(--panel-h);background:var(--white);border-radius:22px 22px 0 0;box-shadow:0 -4px 24px rgba(0,0,0,.18);display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,4px)}
+.handle{width:38px;height:4px;background:#DDD;border-radius:2px;margin:10px auto 6px}
+#prog-row{padding:0 16px 6px;display:flex;align-items:center;gap:8px}
+#prog-bg{flex:1;height:5px;background:#EDE6F5;border-radius:3px;overflow:hidden}
+#prog-fill{height:5px;background:linear-gradient(to right,var(--gold),var(--gold-light));border-radius:3px;transition:width .6s}
+#prog-pct{font-size:11px;font-weight:700;color:var(--gold);min-width:34px;text-align:right}
+#wp-card{flex:1;display:flex;align-items:center;gap:10px;padding:0 16px;min-height:0}
+#wp-icon{width:46px;height:46px;border-radius:14px;background:var(--viola);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 2px 8px rgba(58,26,94,.25)}
+#wp-icon.ristoro{background:var(--verde)}
+#wp-icon.end{background:var(--arancio)}
+#wp-info{flex:1;overflow:hidden}
+#wp-badge{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:1px}
+#wp-name{font-size:15px;font-weight:700;color:#1E1218;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+#wp-sub{font-size:11px;color:#888;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#wp-dist{text-align:right;flex-shrink:0;min-width:60px}
+#dist-val{font-size:24px;font-weight:800;color:var(--viola);line-height:1;display:block}
+#dist-val.near{color:var(--verde)}
+#dist-val.close{color:var(--gold)}
+#dist-unit{font-size:10px;color:#AAA;margin-top:2px;display:block}
+#ctrls{display:flex;gap:8px;padding:0 14px 10px}
+.cbtn{flex:1;padding:11px 8px;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+.cbtn:active{opacity:.8}
+#prev-btn{background:#F0EAF8;color:var(--viola)}
+#prev-btn:disabled{background:#F5F5F5;color:#CCC}
+#next-btn{background:var(--viola);color:white}
+#next-btn:disabled{background:#DDD;color:#AAA}
+#fit-mini{background:#F5F5F5;color:#555;flex:0;padding:11px 13px}
+#toast{position:absolute;top:60px;left:50%;transform:translateX(-50%);z-index:30;background:rgba(30,18,40,.9);color:white;font-size:11px;font-weight:600;border-radius:20px;padding:6px 16px;white-space:nowrap;backdrop-filter:blur(6px);transition:opacity .35s;pointer-events:none}
+#toast.h{opacity:0}
+#offline{position:absolute;top:62px;right:14px;z-index:30;background:#C0211F;color:white;font-size:10px;font-weight:700;padding:4px 9px;border-radius:10px;display:none}
+#arrive{position:absolute;inset:0;z-index:50;background:rgba(20,10,40,.65);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center}
+#arrive-card{background:white;border-radius:20px;padding:24px 28px;text-align:center;max-width:290px;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+#arrive-card h2{font-size:20px;color:var(--viola);margin-bottom:6px}
+#arrive-card p{font-size:13px;color:#666;margin-bottom:16px;line-height:1.5}
+.abtn{width:100%;border:none;border-radius:12px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:6px}
+#anext{background:var(--viola);color:white}
+#adism{background:none;color:#AAA;font-size:12px}
+.wdot{width:30px;height:30px;border-radius:50%;border:3px solid white;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.wdot.curr{width:38px;height:38px;border-color:var(--gold-light);border-width:4px;box-shadow:0 0 0 4px rgba(201,150,10,.25)}
+.wdot.done{opacity:.35}
+.gwrap{position:relative;width:20px;height:20px}
+.gring{position:absolute;top:-14px;left:-14px;width:48px;height:48px;border-radius:50%;background:rgba(58,26,94,.12);border:1px solid rgba(58,26,94,.25);animation:gp 2s ease-out infinite}
+@keyframes gp{0%{transform:scale(.6);opacity:.8}100%{transform:scale(1.4);opacity:0}}
+.gdot{width:20px;height:20px;border-radius:50%;background:var(--viola);border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div>
+    <h1 id="egg-trigger" style="cursor:default;user-select:none">🕊 Route di Pentecoste</h1>
+    <div class="sub">Cosenza → Cristo Salvatore · 8,0 km su strade OSM</div>
+  </div>
+  <div id="top-btns">
+    <button class="tbtn" id="gps-btn" onclick="toggleGPS()">📍 GPS</button>
+    <button class="tbtn" onclick="fitRoute()">⛶</button>
+  </div>
+</div>
+
+<div id="map"></div>
+<div id="toast" class="h"></div>
+<div id="offline">OFFLINE</div>
+
+<!-- 🔐 WATERMARK INVISIBILE — selezionabile con Ctrl+A o tocco lungo sul testo -->
+<div id="wm" aria-hidden="true" style="position:fixed;bottom:0;left:0;font-size:0;opacity:0;color:transparent;pointer-events:none;user-select:text;z-index:-1">Paolo Mirabelli · AGESCI Calabria · Route di Pentecoste · 2026</div>
+
+<!-- 🔐 EASTER EGG SCOUT — appare con tocco lungo sul giglio 🕊 -->
+<div id="egg" style="display:none;position:absolute;inset:0;z-index:200;background:rgba(20,10,40,.88);backdrop-filter:blur(6px);align-items:center;justify-content:center">
+  <div style="background:linear-gradient(135deg,#3A1A5E,#5B2D8E);border-radius:24px;padding:32px 28px;text-align:center;max-width:300px;box-shadow:0 16px 48px rgba(0,0,0,.5);position:relative">
+    <div style="font-size:56px;margin-bottom:8px">⚜️</div>
+    <div style="font-family:'Georgia',serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:6px">AGESCI Calabria · Zona Passo del Pellegrino</div>
+    <div style="font-family:'Georgia',serif;font-size:22px;font-weight:700;color:#F0C84A;margin-bottom:4px">Paolo Mirabelli</div>
+    <div style="font-size:12px;color:rgba(255,255,255,.7);margin-bottom:18px;line-height:1.6">Capo Scout<br>Autore della mappa della Route di Pentecoste 2026</div>
+    <div style="width:40px;height:1px;background:rgba(201,150,10,.5);margin:0 auto 18px"></div>
+    <div style="font-size:13px;color:rgba(255,255,255,.55);font-style:italic;line-height:1.7;margin-bottom:20px">«Sii preparato»<br><span style="font-size:11px;opacity:.7">— Baden-Powell</span></div>
+    <div style="font-size:10px;color:rgba(240,200,74,.6);letter-spacing:1px;margin-bottom:20px">PM · 80·65·79·76·79 | 77·73·82·65·66·69·76·76·73</div>
+    <button onclick="document.getElementById('egg').style.display='none'" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:10px;color:white;padding:9px 24px;font-size:13px;font-weight:600;cursor:pointer;width:100%">Chiudi · Buona Route 🕊</button>
+  </div>
+</div>
+
+<div id="arrive">
+  <div id="arrive-card">
+    <h2 id="atitle"></h2><p id="amsg"></p>
+    <button class="abtn" id="anext" onclick="advanceClose()">Prossima tappa →</button>
+    <button class="abtn" id="adism" onclick="closeArrive()">Rimango qui</button>
+  </div>
+</div>
+
+<div id="panel">
+  <div class="handle"></div>
+  <div id="prog-row">
+    <div id="prog-bg"><div id="prog-fill" style="width:0%"></div></div>
+    <span id="prog-pct">0%</span>
+  </div>
+  <div id="wp-card">
+    <div id="wp-icon">🔥</div>
+    <div id="wp-info">
+      <div id="wp-badge">PARTENZA</div>
+      <div id="wp-name">Piazza Santa Teresa</div>
+      <div id="wp-sub">km 0,0 · Cosenza CS</div>
+    </div>
+    <div id="wp-dist"><span id="dist-val">—</span><span id="dist-unit">al via</span></div>
+  </div>
+  <div id="ctrls">
+    <button class="cbtn" id="prev-btn" onclick="go(-1)" disabled>← Indietro</button>
+    <button class="cbtn" id="fit-mini" onclick="centerCurrent()">⊕</button>
+    <button class="cbtn" id="next-btn" onclick="go(1)">Avanti →</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// PERCORSO TRACCIATO DA PAOLO MIRABELLI SU BROUTER / OPENSTREETMAP
+// 330 punti road-snapped — nessun routing esterno necessario
+// Distanza: 8,04 km · Dislivello: +286 m · Quota max: 432 m s.l.m.
+// AGESCI Calabria — Route di Pentecoste 2026
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const ROUTE = [
+  [39.298314,16.250813],
+  [39.298317,16.250931],
+  [39.297421,16.250939],
+  [39.297289,16.250307],
+  [39.297334,16.250262],
+  [39.297366,16.250213],
+  [39.297404,16.250081],
+  [39.297424,16.250053],
+  [39.297485,16.250028],
+  [39.297723,16.249979],
+  [39.297841,16.249949],
+  [39.297912,16.249873],
+  [39.297974,16.249776],
+  [39.29833,16.249792],
+  [39.298533,16.249803],
+  [39.298665,16.24981],
+  [39.29907,16.249831],
+  [39.299753,16.249867],
+  [39.299739,16.24972],
+  [39.299624,16.248644],
+  [39.298463,16.248682],
+  [39.297925,16.248699],
+  [39.297676,16.248983],
+  [39.297639,16.249033],
+  [39.29751,16.248891],
+  [39.29719,16.248888],
+  [39.297205,16.248182],
+  [39.295701,16.248273],
+  [39.295668,16.248153],
+  [39.295442,16.24741],
+  [39.295378,16.24728],
+  [39.295338,16.247237],
+  [39.295286,16.247208],
+  [39.294595,16.247012],
+  [39.294552,16.246975],
+  [39.294542,16.246917],
+  [39.294553,16.246855],
+  [39.294576,16.246803],
+  [39.294602,16.246766],
+  [39.294634,16.246754],
+  [39.295159,16.246707],
+  [39.295362,16.246619],
+  [39.295525,16.246519],
+  [39.295619,16.246421],
+  [39.295741,16.246262],
+  [39.295866,16.246187],
+  [39.296052,16.246105],
+  [39.296078,16.246073],
+  [39.296081,16.24598],
+  [39.296071,16.245947],
+  [39.296055,16.245923],
+  [39.296025,16.245905],
+  [39.295416,16.245949],
+  [39.295348,16.245937],
+  [39.295304,16.245898],
+  [39.295275,16.245831],
+  [39.295275,16.245735],
+  [39.295298,16.245656],
+  [39.295369,16.245587],
+  [39.295485,16.245509],
+  [39.295907,16.245254],
+  [39.296027,16.245207],
+  [39.296109,16.245203],
+  [39.296167,16.245159],
+  [39.296174,16.245124],
+  [39.296154,16.245083],
+  [39.296111,16.245051],
+  [39.295423,16.244862],
+  [39.295351,16.244813],
+  [39.295326,16.24478],
+  [39.295316,16.244741],
+  [39.295316,16.244696],
+  [39.29533,16.244658],
+  [39.295357,16.244624],
+  [39.295381,16.244606],
+  [39.295417,16.244591],
+  [39.295442,16.244598],
+  [39.29552,16.244648],
+  [39.295545,16.244655],
+  [39.295569,16.24465],
+  [39.295715,16.24458],
+  [39.295738,16.244539],
+  [39.29573,16.244483],
+  [39.295702,16.244462],
+  [39.295669,16.244462],
+  [39.295611,16.244531],
+  [39.295564,16.244564],
+  [39.29554,16.24457],
+  [39.295514,16.244562],
+  [39.295491,16.244547],
+  [39.295479,16.244521],
+  [39.295487,16.244496],
+  [39.295511,16.244471],
+  [39.29568,16.244383],
+  [39.295697,16.244367],
+  [39.295703,16.244338],
+  [39.295793,16.244301],
+  [39.295703,16.244338],
+  [39.295697,16.244367],
+  [39.29568,16.244383],
+  [39.295511,16.244471],
+  [39.295487,16.244496],
+  [39.295479,16.244521],
+  [39.295331,16.244527],
+  [39.295285,16.244491],
+  [39.294786,16.243887],
+  [39.294752,16.243823],
+  [39.294607,16.241683],
+  [39.294554,16.241487],
+  [39.294422,16.241302],
+  [39.293778,16.240873],
+  [39.293711,16.240859],
+  [39.293557,16.240828],
+  [39.293271,16.240791],
+  [39.293074,16.240805],
+  [39.292935,16.24085],
+  [39.29282,16.240934],
+  [39.29269,16.241073],
+  [39.292656,16.241126],
+  [39.29254,16.241081],
+  [39.29246,16.241073],
+  [39.292419,16.241094],
+  [39.292277,16.241301],
+  [39.292206,16.241371],
+  [39.29199,16.241496],
+  [39.291786,16.2416],
+  [39.291699,16.241633],
+  [39.291626,16.241621],
+  [39.291548,16.241608],
+  [39.291473,16.241576],
+  [39.291473,16.241436],
+  [39.291601,16.241138],
+  [39.29168,16.240903],
+  [39.291718,16.240711],
+  [39.291759,16.240447],
+  [39.291792,16.240296],
+  [39.291861,16.240155],
+  [39.291968,16.240031],
+  [39.292037,16.239963],
+  [39.292079,16.239903],
+  [39.292093,16.239848],
+  [39.292072,16.239771],
+  [39.292052,16.239735],
+  [39.292042,16.239716],
+  [39.292075,16.239679],
+  [39.292282,16.239343],
+  [39.292473,16.239071],
+  [39.2927,16.238592],
+  [39.293266,16.237805],
+  [39.293328,16.237703],
+  [39.29337,16.237569],
+  [39.293435,16.237099],
+  [39.293556,16.236771],
+  [39.293696,16.236435],
+  [39.293694,16.236376],
+  [39.293687,16.23604],
+  [39.293595,16.23581],
+  [39.293393,16.235167],
+  [39.293241,16.234345],
+  [39.293133,16.234049],
+  [39.293043,16.233917],
+  [39.292849,16.233633],
+  [39.292591,16.233275],
+  [39.292503,16.232984],
+  [39.292497,16.232773],
+  [39.292496,16.232767],
+  [39.292497,16.232773],
+  [39.292229,16.232782],
+  [39.292169,16.232746],
+  [39.291901,16.232589],
+  [39.291805,16.232396],
+  [39.291739,16.232182],
+  [39.291635,16.231683],
+  [39.29127,16.230905],
+  [39.291091,16.230449],
+  [39.291063,16.230224],
+  [39.29106,16.230198],
+  [39.291097,16.230069],
+  [39.291154,16.230009],
+  [39.291346,16.229913],
+  [39.291511,16.229618],
+  [39.291936,16.229018],
+  [39.291932,16.229],
+  [39.291936,16.229018],
+  [39.292106,16.2289],
+  [39.292362,16.228818],
+  [39.292511,16.22878],
+  [39.292512,16.228783],
+  [39.292511,16.22878],
+  [39.29227,16.22789],
+  [39.29187,16.226757],
+  [39.291742,16.226286],
+  [39.291722,16.225993],
+  [39.291771,16.225826],
+  [39.292134,16.225531],
+  [39.292443,16.225446],
+  [39.2925,16.22529],
+  [39.292502,16.225179],
+  [39.292461,16.225056],
+  [39.292201,16.224637],
+  [39.291697,16.223751],
+  [39.291388,16.223054],
+  [39.291292,16.222642],
+  [39.291249,16.222208],
+  [39.291295,16.221993],
+  [39.291307,16.221973],
+  [39.291317,16.221937],
+  [39.291318,16.221899],
+  [39.29131,16.221862],
+  [39.291294,16.22183],
+  [39.29127,16.221806],
+  [39.291242,16.221793],
+  [39.291213,16.221791],
+  [39.291184,16.221802],
+  [39.291159,16.221823],
+  [39.291141,16.221854],
+  [39.291131,16.22189],
+  [39.29113,16.221928],
+  [39.291138,16.221965],
+  [39.291154,16.221997],
+  [39.291187,16.222026],
+  [39.291152,16.22208],
+  [39.291187,16.222026],
+  [39.291206,16.222034],
+  [39.291235,16.222036],
+  [39.291264,16.222025],
+  [39.291295,16.221993],
+  [39.291307,16.221973],
+  [39.291317,16.221937],
+  [39.291318,16.221899],
+  [39.29131,16.221862],
+  [39.291294,16.22183],
+  [39.29127,16.221806],
+  [39.291242,16.221793],
+  [39.291213,16.221791],
+  [39.291113,16.221635],
+  [39.291072,16.221549],
+  [39.291001,16.221426],
+  [39.290671,16.221062],
+  [39.290459,16.220872],
+  [39.290315,16.220777],
+  [39.290052,16.220754],
+  [39.289849,16.220707],
+  [39.289733,16.220624],
+  [39.28965,16.220484],
+  [39.289516,16.220092],
+  [39.289475,16.219896],
+  [39.289457,16.219682],
+  [39.289481,16.219222],
+  [39.289479,16.219003],
+  [39.289453,16.218853],
+  [39.289392,16.21868],
+  [39.289222,16.218431],
+  [39.289146,16.218354],
+  [39.288236,16.217514],
+  [39.287641,16.216918],
+  [39.287663,16.216877],
+  [39.287757,16.216708],
+  [39.287988,16.216246],
+  [39.287977,16.216011],
+  [39.287907,16.215753],
+  [39.287695,16.214082],
+  [39.287678,16.213846],
+  [39.287699,16.213642],
+  [39.287786,16.213256],
+  [39.287994,16.211904],
+  [39.288058,16.211663],
+  [39.288256,16.211306],
+  [39.288301,16.211153],
+  [39.288473,16.210389],
+  [39.288554,16.209893],
+  [39.288559,16.209866],
+  [39.288517,16.20964],
+  [39.288432,16.209367],
+  [39.288427,16.209342],
+  [39.288432,16.209367],
+  [39.288148,16.209801],
+  [39.287994,16.209941],
+  [39.287438,16.210155],
+  [39.286979,16.210267],
+  [39.286956,16.210273],
+  [39.286423,16.210327],
+  [39.286142,16.210389],
+  [39.285932,16.210418],
+  [39.285129,16.210499],
+  [39.284779,16.210509],
+  [39.284533,16.210558],
+  [39.284439,16.210587],
+  [39.284378,16.210605],
+  [39.283966,16.210882],
+  [39.283609,16.211121],
+  [39.282904,16.211647],
+  [39.282882,16.211684],
+  [39.282801,16.211825],
+  [39.282552,16.211589],
+  [39.28211,16.211201],
+  [39.280853,16.210006],
+  [39.280847,16.210026],
+  [39.280853,16.210006],
+  [39.280991,16.209459],
+  [39.28115,16.208827],
+  [39.280999,16.208106],
+  [39.280984,16.207881],
+  [39.280985,16.207828],
+  [39.280984,16.207881],
+  [39.280999,16.208106],
+  [39.28115,16.208827],
+  [39.280991,16.209459],
+  [39.280853,16.210006],
+  [39.280756,16.210394],
+  [39.280753,16.210392],
+  [39.280227,16.209903],
+  [39.280008,16.209676],
+  [39.279629,16.209285],
+  [39.279404,16.209019],
+  [39.279374,16.208983],
+  [39.279152,16.208646],
+  [39.2791,16.208487],
+  [39.279018,16.208238],
+  [39.27892,16.208007],
+  [39.278835,16.207807],
+  [39.278642,16.207399],
+  [39.27856,16.207261],
+  [39.278467,16.207104],
+  [39.278228,16.20677],
+  [39.278228,16.206769],
+  [39.27848,16.206441],
+  [39.278536,16.206342],
+  [39.278536,16.206342],
+  [39.278527,16.206356]
+];
+
+// Waypoints navigazione — indici nel array ROUTE, km calcolati dal GPX
+const WP = [
+  {i:0,   km:0.00, name:"Piazza Santa Teresa",       sub:"Cosenza CS · Punto di raduno",
+   badge:"⬆ Partenza · km 0,0",      icon:"🔥", type:"start",
+   info:"Si parte! 8 km verso Cristo Salvatore. Buona route 🕊"},
+  {i:16,  km:0.38, name:"Parco Piero Romeo",          sub:"Cosenza · Secondo ritrovo e ristoro",
+   badge:"🌿 Ristoro · km 0,4",       icon:"🌿", type:"ristoro",
+   info:"Sosta verde per il secondo ritrovo. Acqua disponibile."},
+  {i:96,  km:1.94, name:"Acquedotto Merone",          sub:"Piazza Michele Bianchi",
+   badge:"◆ Tappa 2 · km 1,9",        icon:"⚜️", type:"stop",
+   info:"Panorama sul centro storico e il Castello Normanno-Svevo."},
+  {i:179, km:3.90, name:"Chiesa del Rosario",         sub:"Via Paparelle · Sosta spirituale e ristoro",
+   badge:"◆ Tappa 3 · km 3,9",        icon:"🕊", type:"ristoro",
+   info:"Sosta spirituale. Da qui la salita verso Tivolille diventa seria."},
+  {i:303, km:7.33, name:"Via Luchino Visconti, 50",   sub:"87040 Tivolille Pasquali · Quota ~432 m",
+   badge:"◆ Tappa 4 · km 7,3",        icon:"🏔", type:"stop",
+   info:"Punto più alto del percorso (~432 m s.l.m.). Da qui si scende!"},
+  {i:308, km:7.52, name:"Via Leonardo da Vinci, 65",  sub:"87040 Tivolille Pasquali",
+   badge:"◆ Tappa 5 · km 7,5",        icon:"🏘", type:"stop",
+   info:"Siamo sull'ultimo rettilineo. La Chiesa di Cristo Salvatore è a meno di 500 m."},
+  {i:327, km:8.04, name:"Chiesa di Cristo Salvatore", sub:"Viale della Concordia, 1 · Mendicino (CS)",
+   badge:"🏁 Destinazione · km 8,0",  icon:"⛪", type:"end",
+   info:"🎉 Ce l\'abbiamo fatta! Pentecoste 🕊 — Lo Spirito soffia dove vuole."},
+];
+
+const TOTAL_KM = 8.04;
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let map, routeLayer=null, doneLayer=null, wpMarkers=[];
+let gpsMarker=null, gpsWatchId=null, gpsOn=false;
+let idx=0, arriveLock=false;
+
+window.addEventListener("DOMContentLoaded", ()=>{
+  map=L.map("map",{zoomControl:false,attributionControl:true})
+       .setView([39.289,16.228],14);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    attribution:"© <a href=\"https://osm.org/copyright\">OpenStreetMap</a>",maxZoom:19
+  }).addTo(map);
+  map.attributionControl.setPrefix(
+    "<span title=\"Paolo Mirabelli — AGESCI Calabria\" style=\"font-weight:700;opacity:.65\">PM</span>"
+  );
+  L.control.zoom({position:"topright"}).addTo(map);
+
+  // Disegna percorso direttamente dai 330 punti GPX — zero API esterne
+  routeLayer=L.polyline(ROUTE,{color:"#5B2D8E",weight:5,opacity:.85,lineJoin:"round",lineCap:"round"}).addTo(map);
+  placeMarkers(); updatePanel(); fitRoute();
+
+  checkOnline();
+  window.addEventListener("online",checkOnline);
+  window.addEventListener("offline",checkOnline);
+  if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+});
+
+function updateDoneLine(){
+  if(doneLayer){map.removeLayer(doneLayer);doneLayer=null;}
+  if(idx===0)return;
+  const ci=WP[idx].i;
+  doneLayer=L.polyline(ROUTE.slice(0,ci+1),{color:"#C9960A",weight:5,opacity:.65,lineJoin:"round"}).addTo(map);
+}
+
+function placeMarkers(){
+  wpMarkers.forEach(({m})=>map.removeLayer(m));wpMarkers=[];
+  WP.forEach((wp,j)=>{
+    const[la,lo]=ROUTE[wp.i];
+    const m=L.marker([la,lo],{icon:mkIcon(wp,j),zIndexOffset:j===idx?100:0})
+      .bindPopup("<b>"+wp.name+"</b><br><small style=\"color:#888\">"+wp.sub+"</small><br><small style=\"color:#C9960A\">"+wp.badge+"</small>")
+      .on("click",()=>{idx=j;updatePanel();updateDoneLine();})
+      .addTo(map);
+    wpMarkers.push({m,j});
+  });
+}
+function mkIcon(wp,j){
+  const bg=wp.type==="start"?"#3A1A5E":wp.type==="end"?"#E8610A":wp.type==="ristoro"?"#1A7A3C":"#5B2D8E";
+  const curr=j===idx,done=j<idx;
+  return L.divIcon({className:"",html:"<div class=\"wdot"+(curr?" curr":"")+(done?" done":"")+"\""+" style=\"background:"+bg+"\">"+wp.icon+"</div>",iconSize:curr?[38,38]:[30,30],iconAnchor:curr?[19,19]:[15,15],popupAnchor:[0,-20]});
+}
+function refreshMarkers(){wpMarkers.forEach(({m,j})=>{m.setIcon(mkIcon(WP[j],j));m.setZIndexOffset(j===idx?100:0);});}
+
+function updatePanel(){
+  const wp=WP[idx];
+  const pct=Math.round((wp.km/TOTAL_KM)*100);
+  document.getElementById("prog-fill").style.width=pct+"%";
+  document.getElementById("prog-pct").textContent=pct+"%";
+  const ic=document.getElementById("wp-icon");
+  ic.textContent=wp.icon;ic.className="wp-icon";
+  if(wp.type==="ristoro")ic.classList.add("ristoro");
+  if(wp.type==="end")ic.classList.add("end");
+  document.getElementById("wp-badge").textContent=wp.badge;
+  document.getElementById("wp-name").textContent=wp.name;
+  document.getElementById("wp-sub").textContent=wp.sub;
+  document.getElementById("prev-btn").disabled=idx===0;
+  document.getElementById("next-btn").disabled=idx===WP.length-1;
+  document.getElementById("next-btn").textContent=idx>=WP.length-2?"🏁 Arrivo!":"Avanti →";
+  refreshMarkers();updateDoneLine();
+}
+function go(d){const n=idx+d;if(n<0||n>=WP.length)return;idx=n;updatePanel();centerCurrent();}
+function centerCurrent(){const[la,lo]=ROUTE[WP[idx].i];map.flyTo([la,lo],Math.max(map.getZoom(),16),{duration:.8});}
+function fitRoute(){if(routeLayer)map.fitBounds(routeLayer.getBounds(),{padding:[60,60]});}
+
+function toggleGPS(){gpsOn?stopGPS():startGPS();}
+function startGPS(){
+  if(!navigator.geolocation){toast("GPS non disponibile");return;}
+  gpsOn=true;document.getElementById("gps-btn").classList.add("on");document.getElementById("gps-btn").textContent="🔵 GPS";
+  toast("In attesa GPS…",99999);
+  gpsWatchId=navigator.geolocation.watchPosition(onGPS,onGPSErr,{enableHighAccuracy:true,maximumAge:3000,timeout:12000});
+}
+function stopGPS(){
+  if(gpsWatchId)navigator.geolocation.clearWatch(gpsWatchId);
+  gpsOn=false;document.getElementById("gps-btn").classList.remove("on");document.getElementById("gps-btn").textContent="📍 GPS";
+  if(gpsMarker){map.removeLayer(gpsMarker);gpsMarker=null;}
+  document.getElementById("dist-val").textContent="—";document.getElementById("dist-unit").textContent="al via";hideToast();
+}
+function onGPS({coords:{latitude:la,longitude:lo}}){
+  hideToast();
+  if(!gpsMarker){gpsMarker=L.marker([la,lo],{icon:L.divIcon({className:"",html:"<div class=\"gwrap\"><div class=\"gring\"></div><div class=\"gdot\"></div></div>",iconSize:[20,20],iconAnchor:[10,10]}),zIndexOffset:1000}).addTo(map);}
+  else gpsMarker.setLatLng([la,lo]);
+  const[wla,wlo]=ROUTE[WP[idx].i];
+  const d=haversine(la,lo,wla,wlo);
+  showDist(d);
+  if(d<40&&!arriveLock&&idx<WP.length-1){arriveLock=true;openArrive(WP[idx]);}
+}
+function onGPSErr(e){toast("GPS: "+(e.code===1?"permesso negato":e.code===2?"segnale assente":"timeout"),5000);}
+function showDist(m){
+  const v=document.getElementById("dist-val"),u=document.getElementById("dist-unit");
+  if(m<1000){v.textContent=Math.round(m);u.textContent="m alla tappa";}
+  else{v.textContent=(m/1000).toFixed(1).replace(".",",");u.textContent="km alla tappa";}
+  v.className=m<60?"near":m<200?"close":"";
+}
+function openArrive(wp){
+  document.getElementById("atitle").textContent=wp.type==="end"?"🏁 Arrivati!":"🎉 Tappa raggiunta!";
+  document.getElementById("amsg").textContent=wp.info;
+  document.getElementById("anext").textContent=wp.type==="end"?"Chiudi":"Prossima tappa →";
+  document.getElementById("arrive").style.display="flex";
+}
+function closeArrive(){document.getElementById("arrive").style.display="none";}
+function advanceClose(){closeArrive();arriveLock=false;if(idx<WP.length-1)go(1);}
+function haversine(la1,lo1,la2,lo2){
+  const R=6371000,dL=(la2-la1)*Math.PI/180,dO=(lo2-lo1)*Math.PI/180;
+  const a=Math.sin(dL/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dO/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+let tT;
+function toast(msg,dur=2800){const el=document.getElementById("toast");el.textContent=msg;el.classList.remove("h");clearTimeout(tT);if(dur<99000)tT=setTimeout(hideToast,dur);}
+function hideToast(){clearTimeout(tT);document.getElementById("toast").classList.add("h");}
+function checkOnline(){document.getElementById("offline").style.display=navigator.onLine?"none":"block";if(!navigator.onLine)toast("📵 Offline",3000);}
+
+// ─── EASTER EGG — tocco lungo (700ms) sul titolo 🕊 ────────────────────────
+(function(){
+  const el = document.getElementById("egg-trigger");
+  let pressTimer = null;
+  const HOLD = 700; // ms
+
+  function startPress(e) {
+    pressTimer = setTimeout(() => {
+      document.getElementById("egg").style.display = "flex";
+      // Piccola vibrazione su mobile se disponibile
+      if (navigator.vibrate) navigator.vibrate([40, 30, 40]);
+    }, HOLD);
+  }
+  function cancelPress() {
+    clearTimeout(pressTimer);
+  }
+
+  // Touch (mobile)
+  el.addEventListener("touchstart",  startPress,  {passive:true});
+  el.addEventListener("touchend",    cancelPress);
+  el.addEventListener("touchcancel", cancelPress);
+  el.addEventListener("touchmove",   cancelPress, {passive:true});
+
+  // Mouse (desktop)
+  el.addEventListener("mousedown", startPress);
+  el.addEventListener("mouseup",   cancelPress);
+  el.addEventListener("mouseleave",cancelPress);
+  el.addEventListener("contextmenu", e => e.preventDefault()); // evita menu tasto destro
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#3A1A5E">
+<link rel="manifest" href="manifest.json">
+<title>Route di Pentecoste</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--viola:#3A1A5E;--viola-mid:#5B2D8E;--gold:#C9960A;--gold-light:#F0C84A;--verde:#1A7A3C;--arancio:#E8610A;--white:#FEFEFE;--panel-h:192px}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#3A1A5E}
+#map{position:absolute;top:0;left:0;right:0;bottom:var(--panel-h);z-index:1}
+
+/* TOPBAR */
+#topbar{position:absolute;top:0;left:0;right:0;z-index:20;background:linear-gradient(rgba(58,26,94,.92),transparent);padding:env(safe-area-inset-top,10px) 14px 28px;display:flex;align-items:flex-start;justify-content:space-between;pointer-events:none}
+#topbar>*{pointer-events:auto}
+#topbar h1{color:#fff;font-size:14px;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+#topbar .sub{color:rgba(255,255,255,.58);font-size:10px;margin-top:1px}
+#top-btns{display:flex;gap:6px}
+.tbtn{background:rgba(255,255,255,.18);backdrop-filter:blur(8px);border:none;border-radius:10px;color:white;padding:7px 11px;font-size:12px;font-weight:600;cursor:pointer;transition:background .2s}
+.tbtn.on{background:var(--verde)}
+
+/* PANEL */
+#panel{position:absolute;bottom:0;left:0;right:0;z-index:10;height:var(--panel-h);background:var(--white);border-radius:22px 22px 0 0;box-shadow:0 -4px 24px rgba(0,0,0,.18);display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,4px)}
+.handle{width:38px;height:4px;background:#DDD;border-radius:2px;margin:10px auto 6px}
+#prog-row{padding:0 16px 6px;display:flex;align-items:center;gap:8px}
+#prog-bg{flex:1;height:5px;background:#EDE6F5;border-radius:3px;overflow:hidden}
+#prog-fill{height:5px;background:linear-gradient(to right,var(--gold),var(--gold-light));border-radius:3px;transition:width .6s}
+#prog-pct{font-size:11px;font-weight:700;color:var(--gold);min-width:34px;text-align:right}
+#wp-card{flex:1;display:flex;align-items:center;gap:10px;padding:0 16px;min-height:0}
+#wp-icon{width:46px;height:46px;border-radius:14px;background:var(--viola);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 2px 8px rgba(58,26,94,.25)}
+#wp-icon.ristoro{background:var(--verde)}
+#wp-icon.end{background:var(--arancio)}
+#wp-info{flex:1;overflow:hidden}
+#wp-badge{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:1px}
+#wp-name{font-size:15px;font-weight:700;color:#1E1218;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+#wp-sub{font-size:11px;color:#888;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#wp-dist{text-align:right;flex-shrink:0;min-width:60px}
+#dist-val{font-size:24px;font-weight:800;color:var(--viola);line-height:1;display:block}
+#dist-val.near{color:var(--verde)}
+#dist-val.close{color:var(--gold)}
+#dist-unit{font-size:10px;color:#AAA;margin-top:2px;display:block}
+#ctrls{display:flex;gap:8px;padding:0 14px 10px}
+.cbtn{flex:1;padding:11px 8px;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:opacity .15s}
+.cbtn:active{opacity:.8}
+#prev-btn{background:#F0EAF8;color:var(--viola)}
+#prev-btn:disabled{background:#F5F5F5;color:#CCC}
+#next-btn{background:var(--viola);color:white}
+#next-btn:disabled{background:#DDD;color:#AAA}
+#fit-mini{background:#F5F5F5;color:#555;flex:0;padding:11px 13px}
+
+/* TOAST */
+#toast{position:absolute;top:60px;left:50%;transform:translateX(-50%);z-index:30;background:rgba(30,18,40,.9);color:white;font-size:11px;font-weight:600;border-radius:20px;padding:6px 16px;white-space:nowrap;backdrop-filter:blur(6px);transition:opacity .35s;pointer-events:none}
+#toast.h{opacity:0}
+#offline{position:absolute;top:62px;right:14px;z-index:30;background:#C0211F;color:white;font-size:10px;font-weight:700;padding:4px 9px;border-radius:10px;letter-spacing:.5px;display:none}
+
+/* ARRIVE */
+#arrive{position:absolute;inset:0;z-index:50;background:rgba(20,10,40,.65);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center}
+#arrive-card{background:white;border-radius:20px;padding:24px 28px;text-align:center;max-width:290px;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+#arrive-card h2{font-size:20px;color:var(--viola);margin-bottom:6px}
+#arrive-card p{font-size:13px;color:#666;margin-bottom:16px;line-height:1.5}
+.abtn{width:100%;border:none;border-radius:12px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:6px}
+#anext{background:var(--viola);color:white}
+#adism{background:none;color:#AAA;font-size:12px}
+
+/* MARKERS */
+.wdot{width:30px;height:30px;border-radius:50%;border:3px solid white;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.wdot.curr{width:38px;height:38px;border-color:var(--gold-light);border-width:4px;box-shadow:0 0 0 4px rgba(201,150,10,.25)}
+.wdot.done{opacity:.35}
+.gwrap{position:relative;width:20px;height:20px}
+.gring{position:absolute;top:-14px;left:-14px;width:48px;height:48px;border-radius:50%;background:rgba(58,26,94,.12);border:1px solid rgba(58,26,94,.25);animation:gp 2s ease-out infinite}
+@keyframes gp{0%{transform:scale(.6);opacity:.8}100%{transform:scale(1.4);opacity:0}}
+.gdot{width:20px;height:20px;border-radius:50%;background:var(--viola);border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div>
+    <h1>🕊 Route di Pentecoste</h1>
+    <div class="sub">Cosenza → Cristo Salvatore · 7,4 km</div>
+  </div>
+  <div id="top-btns">
+    <button class="tbtn" id="gps-btn" onclick="toggleGPS()">📍 GPS</button>
+    <button class="tbtn" onclick="fitRoute()">⛶</button>
+  </div>
+</div>
+
+<div id="map"></div>
+<div id="toast" class="h"></div>
+<div id="offline">OFFLINE</div>
+
+<div id="arrive">
+  <div id="arrive-card">
+    <h2 id="atitle">🎉 Tappa!</h2>
+    <p id="amsg">Tappa raggiunta.</p>
+    <button class="abtn" id="anext" onclick="advanceClose()">Prossima tappa →</button>
+    <button class="abtn" id="adism" onclick="closeArrive()">Rimango qui</button>
+  </div>
+</div>
+
+<div id="panel">
+  <div class="handle"></div>
+  <div id="prog-row">
+    <div id="prog-bg"><div id="prog-fill" style="width:0%"></div></div>
+    <span id="prog-pct">0%</span>
+  </div>
+  <div id="wp-card">
+    <div id="wp-icon">🔥</div>
+    <div id="wp-info">
+      <div id="wp-badge">PARTENZA</div>
+      <div id="wp-name">Piazza Santa Teresa</div>
+      <div id="wp-sub">km 0,0 · Cosenza CS</div>
+    </div>
+    <div id="wp-dist">
+      <span id="dist-val">—</span>
+      <span id="dist-unit">al via</span>
+    </div>
+  </div>
+  <div id="ctrls">
+    <button class="cbtn" id="prev-btn" onclick="go(-1)" disabled>← Indietro</button>
+    <button class="cbtn" id="fit-mini" onclick="centerCurrent()">⊕</button>
+    <button class="cbtn" id="next-btn" onclick="go(1)">Avanti →</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// COORDINATE ESATTE FORNITE DA PAOLO MIRABELLI — AGESCI CALABRIA PC
+// Percorso tracciato a mano sul campo, nessun routing automatico necessario
+// ═══════════════════════════════════════════════════════════════════════════
+
+// POLILINEA COMPLETA — tutti i punti del percorso nell'ordine esatto
+// [lat, lon]
+const ROUTE = [
+  [39.29830033960992,  16.25017402005943],  // Piazza Santa Teresa (partenza)
+  [39.29899747764631,  16.250048197623695], // Parco Piero Romeo
+  [39.295669828759245, 16.246300182013975], // →
+  [39.295684900122914, 16.24405178785796],  // Acquedotto Merone
+  [39.29153031811881,  16.241467670675444], // →
+  [39.29208958301138,  16.23968024642778],  // →
+  [39.29249951430276,  16.232724792157406], // svolta
+  [39.29150749066876,  16.22991641857684],  // Chiesa del Rosario
+  [39.29248768724901,  16.228691083796452], // →
+  [39.29120606949369,  16.221891954684573], // →
+  [39.287665189506804, 16.216870462088234], // svolta
+  [39.28839470520843,  16.20937856134054],  // svolta
+  [39.28275853415336,  16.21170391006028],  // svolta
+  [39.28087642376683,  16.20988944632121],  // svolta
+  [39.2811811652649,   16.20749718647334],  // tappa 4
+  [39.2806757119913,   16.2103640532286],   // →
+  [39.27834082169159,  16.206614737337816], // svolta
+  [39.27856989599606,  16.206286109768904], // Chiesa di Cristo Salvatore (arrivo)
+];
+
+// WAYPOINT TAPPE — solo le fermate mostrate nel pannello
+const WP = [
+  { lat:39.29830033960992,  lon:16.25017402005943,  km:0.0,
+    name:"Piazza Santa Teresa",       sub:"Cosenza CS · Punto di raduno",
+    badge:"⬆ Partenza · km 0,0",     icon:"🔥", type:"start",
+    info:"Si parte! 7,4 km verso Cristo Salvatore. Buona route 🕊" },
+
+  { lat:39.29899747764631,  lon:16.250048197623695, km:0.3,
+    name:"Parco Piero Romeo",         sub:"Cosenza · Secondo ritrovo e ristoro",
+    badge:"🌿 Ristoro · km 0,3",      icon:"🌿", type:"ristoro",
+    info:"Sosta verde per il secondo ritrovo. Acqua disponibile. Si riparte insieme." },
+
+  { lat:39.295684900122914, lon:16.24405178785796,  km:0.6,
+    name:"Acquedotto Merone",         sub:"Piazza Michele Bianchi",
+    badge:"◆ Tappa 2 · km 0,6",      icon:"⚜️", type:"stop",
+    info:"Panorama sul centro storico e il Castello Normanno-Svevo. Il percorso svolta verso ovest." },
+
+  { lat:39.29150749066876,  lon:16.22991641857684,  km:2.1,
+    name:"Chiesa del Rosario",        sub:"Via Paparelle · Sosta spirituale e ristoro",
+    badge:"◆ Tappa 3 · km 2,1",      icon:"🕊", type:"ristoro",
+    info:"Sosta spirituale e punto di ristoro. Da qui inizia la salita verso Tivolille." },
+
+  { lat:39.2811811652649,   lon:16.20749718647334,  km:5.6,
+    name:"Via Luchino Visconti, 50",  sub:"87040 Tivolille Pasquali · Quota massima ~430 m",
+    badge:"◆ Tappa 4 · km 5,6",      icon:"🏔", type:"stop",
+    info:"Punto più alto del percorso (~430 m s.l.m.). Da qui si scende verso la meta!" },
+
+  { lat:39.27856989599606,  lon:16.206286109768904, km:7.4,
+    name:"Chiesa di Cristo Salvatore",sub:"Viale della Concordia, 1 · Mendicino (CS)",
+    badge:"🏁 Destinazione · km 7,4", icon:"⛪", type:"end",
+    info:"🎉 Ce l'abbiamo fatta! Pentecoste 🕊 — Lo Spirito soffia dove vuole." },
+];
+
+// ─── STATO ────────────────────────────────────────────────────────────────────
+let map, routeLayer=null, doneLayer=null, wpMarkers=[];
+let gpsMarker=null, gpsWatchId=null, gpsOn=false;
+let idx=0, arriveLock=false;
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  map = L.map('map', {zoomControl:false, attributionControl:true})
+         .setView([39.289, 16.228], 14);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'© <a href="https://osm.org/copyright">OpenStreetMap</a>',
+    maxZoom:19
+  }).addTo(map);
+
+  map.attributionControl.setPrefix(
+    '<span title="Paolo Mirabelli — AGESCI Calabria PC" style="font-weight:700;opacity:.65">PM</span>'
+  );
+  L.control.zoom({position:'topright'}).addTo(map);
+
+  // Disegna percorso direttamente dai punti esatti — nessun routing esterno
+  routeLayer = L.polyline(ROUTE, {
+    color:'#5B2D8E', weight:5, opacity:.85, lineJoin:'round', lineCap:'round'
+  }).addTo(map);
+
+  placeMarkers();
+  updatePanel();
+  fitRoute();
+
+  checkOnline();
+  window.addEventListener('online',  checkOnline);
+  window.addEventListener('offline', checkOnline);
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+});
+
+// ─── DONE LINE (tratto percorso completato in oro) ────────────────────────────
+function updateDoneLine() {
+  if(doneLayer){ map.removeLayer(doneLayer); doneLayer=null; }
+  if(idx===0) return;
+  const wp = WP[idx];
+  // Trova il punto della polilinea più vicino alla tappa corrente
+  let ci=0, md=Infinity;
+  ROUTE.forEach(([la,lo],i)=>{
+    const d=haversine(la,lo,wp.lat,wp.lon);
+    if(d<md){md=d;ci=i;}
+  });
+  doneLayer = L.polyline(ROUTE.slice(0,ci+1), {
+    color:'#C9960A', weight:5, opacity:.65, lineJoin:'round'
+  }).addTo(map);
+}
+
+// ─── MARKERS ──────────────────────────────────────────────────────────────────
+function placeMarkers(){
+  wpMarkers.forEach(({m})=>map.removeLayer(m));
+  wpMarkers=[];
+  WP.forEach((wp,i)=>{
+    const m=L.marker([wp.lat,wp.lon],{icon:mkIcon(wp,i),zIndexOffset:i===idx?100:0})
+      .bindPopup(`<b>${wp.name}</b><br><small style="color:#888">${wp.sub}</small><br><small style="color:#C9960A">${wp.badge}</small>`)
+      .on('click',()=>{idx=i;updatePanel();updateDoneLine();})
+      .addTo(map);
+    wpMarkers.push({m,i});
+  });
+}
+
+function mkIcon(wp,i){
+  const bg=wp.type==='start'?'#3A1A5E':wp.type==='end'?'#E8610A':wp.type==='ristoro'?'#1A7A3C':'#5B2D8E';
+  const curr=i===idx, done=i<idx;
+  return L.divIcon({
+    className:'',
+    html:`<div class="wdot${curr?' curr':''}${done?' done':''}" style="background:${bg}">${wp.icon}</div>`,
+    iconSize:curr?[38,38]:[30,30], iconAnchor:curr?[19,19]:[15,15], popupAnchor:[0,-20]
+  });
+}
+
+function refreshMarkers(){
+  wpMarkers.forEach(({m,i})=>{
+    m.setIcon(mkIcon(WP[i],i));
+    m.setZIndexOffset(i===idx?100:0);
+  });
+}
+
+// ─── PANEL ────────────────────────────────────────────────────────────────────
+function updatePanel(){
+  const wp=WP[idx];
+  const pct=Math.round((wp.km/7.4)*100);
+  document.getElementById('prog-fill').style.width=pct+'%';
+  document.getElementById('prog-pct').textContent=pct+'%';
+  const ic=document.getElementById('wp-icon');
+  ic.textContent=wp.icon; ic.className='wp-icon';
+  if(wp.type==='ristoro') ic.classList.add('ristoro');
+  if(wp.type==='end')     ic.classList.add('end');
+  document.getElementById('wp-badge').textContent=wp.badge;
+  document.getElementById('wp-name').textContent=wp.name;
+  document.getElementById('wp-sub').textContent=wp.sub;
+  document.getElementById('prev-btn').disabled=idx===0;
+  document.getElementById('next-btn').disabled=idx===WP.length-1;
+  document.getElementById('next-btn').textContent=idx>=WP.length-2?'🏁 Arrivo!':'Avanti →';
+  refreshMarkers(); updateDoneLine();
+}
+
+function go(d){
+  const n=idx+d;
+  if(n<0||n>=WP.length) return;
+  idx=n; updatePanel(); centerCurrent();
+}
+
+function centerCurrent(){
+  const wp=WP[idx];
+  map.flyTo([wp.lat,wp.lon],Math.max(map.getZoom(),16),{duration:.8});
+}
+
+function fitRoute(){
+  map.fitBounds(routeLayer.getBounds(),{padding:[60,60]});
+}
+
+// ─── GPS ──────────────────────────────────────────────────────────────────────
+function toggleGPS(){ gpsOn?stopGPS():startGPS(); }
+
+function startGPS(){
+  if(!navigator.geolocation){toast('GPS non disponibile');return;}
+  gpsOn=true;
+  document.getElementById('gps-btn').classList.add('on');
+  document.getElementById('gps-btn').textContent='🔵 GPS';
+  toast('In attesa GPS…',99999);
+  gpsWatchId=navigator.geolocation.watchPosition(onGPS,onGPSErr,
+    {enableHighAccuracy:true,maximumAge:3000,timeout:12000});
+}
+
+function stopGPS(){
+  if(gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
+  gpsOn=false;
+  document.getElementById('gps-btn').classList.remove('on');
+  document.getElementById('gps-btn').textContent='📍 GPS';
+  if(gpsMarker){map.removeLayer(gpsMarker);gpsMarker=null;}
+  document.getElementById('dist-val').textContent='—';
+  document.getElementById('dist-unit').textContent='al via';
+  hideToast();
+}
+
+function onGPS({coords:{latitude:la,longitude:lo}}){
+  hideToast();
+  if(!gpsMarker){
+    gpsMarker=L.marker([la,lo],{
+      icon:L.divIcon({className:'',html:`<div class="gwrap"><div class="gring"></div><div class="gdot"></div></div>`,iconSize:[20,20],iconAnchor:[10,10]}),
+      zIndexOffset:1000
+    }).addTo(map);
+  } else { gpsMarker.setLatLng([la,lo]); }
+  const wp=WP[idx];
+  const d=haversine(la,lo,wp.lat,wp.lon);
+  showDist(d);
+  if(d<40&&!arriveLock&&idx<WP.length-1){arriveLock=true;openArrive(wp);}
+}
+
+function onGPSErr(e){
+  toast('GPS: '+(e.code===1?'permesso negato':e.code===2?'segnale assente':'timeout'),5000);
+}
+
+function showDist(m){
+  const v=document.getElementById('dist-val'),u=document.getElementById('dist-unit');
+  if(m<1000){v.textContent=Math.round(m);u.textContent='m alla tappa';}
+  else{v.textContent=(m/1000).toFixed(1).replace('.',',');u.textContent='km alla tappa';}
+  v.className=m<60?'near':m<200?'close':'';
+}
+
+// ─── ARRIVE ───────────────────────────────────────────────────────────────────
+function openArrive(wp){
+  document.getElementById('atitle').textContent=wp.type==='end'?'🏁 Arrivati!':'🎉 Tappa raggiunta!';
+  document.getElementById('amsg').textContent=wp.info;
+  document.getElementById('anext').textContent=wp.type==='end'?'Chiudi':'Prossima tappa →';
+  document.getElementById('arrive').style.display='flex';
+}
+function closeArrive(){document.getElementById('arrive').style.display='none';}
+function advanceClose(){closeArrive();arriveLock=false;if(idx<WP.length-1)go(1);}
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+function haversine(la1,lo1,la2,lo2){
+  const R=6371000,dL=(la2-la1)*Math.PI/180,dO=(lo2-lo1)*Math.PI/180;
+  const a=Math.sin(dL/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dO/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+let tT;
+function toast(msg,dur=2800){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.remove('h');
+  clearTimeout(tT);if(dur<99000)tT=setTimeout(hideToast,dur);
+}
+function hideToast(){clearTimeout(tT);document.getElementById('toast').classList.add('h');}
+
+function checkOnline(){
+  document.getElementById('offline').style.display=navigator.onLine?'none':'block';
+  if(!navigator.onLine) toast('📵 Modalità offline',3500);
+}
+</script>
+</body>
+</html>
